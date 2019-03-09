@@ -484,6 +484,9 @@ static void UND(){  // UNDefined (not a valid or supported 6502 opcode)
   BRK();
 }
 
+
+// JUMP TABLES 
+
 static void (*instruction[])(void)  = {
  BRK, ORA, UND, UND, UND, ORA, ASL, UND, PHP, ORA, ASL, UND, UND, ORA, ASL, UND,
  BPL, ORA, UND, UND, UND, ORA, ASL, UND, CLC, ORA, UND, UND, UND, ORA, ASL, UND,
