@@ -546,9 +546,9 @@ int main(int argc, char *argv[]) {
   // main loop
   while(1){
     for (i=0; i<100; i++){    // executes 100 instructions before a kbd scan
-      opcode = readMem(reg.PC++); // fetch and increment the Program Counter
-      addressing[opcode]();   // decode operands against the addressing mode
-      instruction[opcode]();  // execute the instruction
+      opcode = readMem(reg.PC++); // FETCH and increment the Program Counter
+      addressing[opcode]();   // DECODE operands against the addressing mode
+      instruction[opcode]();  // EXEC the instruction
     }
 
     // keyboard controller
