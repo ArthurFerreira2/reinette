@@ -8,7 +8,13 @@
 #include <unistd.h>      // for usleep()
 
 #include "woz.h"
-#define RAMSIZE 0x10000   // modified to run the klaus Test suite
+
+
+// modified to run the klaus Test suite : romless
+// #define RAMSIZE 0xC000  // 48KB
+#define RAMSIZE 0x10000  // 64KB
+
+
 uint8_t ram[RAMSIZE];
 
 #define CARRY 0x01
@@ -484,6 +490,9 @@ static void UND(){  // UNDefined (not a valid or supported 6502 opcode)
   BRK();
 }
 
+
+// JUMP TABLES
+
 static void (*instruction[])(void)  = {
  BRK, ORA, UND, UND, UND, ORA, ASL, UND, PHP, ORA, ASL, UND, UND, ORA, ASL, UND,
  BPL, ORA, UND, UND, UND, ORA, ASL, UND, CLC, ORA, UND, UND, UND, ORA, ASL, UND,
@@ -540,9 +549,11 @@ int main(int argc, char *argv[]) {
   // processor reset
   reset();
 
-         // load the Klaus Test Suite in the 64KB of RAM
+
+         // load the Klaus Test Suite into the 64KB of RAM
          FILE *f=fopen("6502_functional_test.bin","rb");
          while(fread(ram+i, 1, 1, f)) i++;
+         // set the Program Counter to 0x400
          reg.PC=0x400;
 
 
@@ -554,15 +565,21 @@ int main(int argc, char *argv[]) {
       instruction[opcode]();  // execute the instruction
     }
 
+
+
         // print the Program Counter every 100 instructions to detect faults
         move(0,0);
-        refresh();
         printw("PC = $%04X",reg.PC);
         refresh();
         }
         }
 
-/*  commented out to run the klaus Test Suite
+        // Alter a few seconds, PC is stuck at $3469 => all the tests passed
+
+
+
+        /*  commented out to run the klaus Test Suite
+
     // keyboard controller
     if (!keyRdy){                        // don't miss a keystroke
       ch = getch();                      // reads from ncurses
@@ -580,4 +597,4 @@ int main(int argc, char *argv[]) {
     }
   }
 }
-*/
+        commented out to run the klaus Test Suite */
