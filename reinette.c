@@ -1,8 +1,6 @@
 // Reinette, emulates the Apple 1 computer
 // Copyright 2018 Arthur Ferreira
-// Last modified 5th of March 2019
-// initially developped on GNU/Linux
-// compiles with gcc 6.3.0-18
+// Last modified 9th of March 2019
 
 #include <ncurses.h>
 #include <unistd.h>      // for usleep()
@@ -73,11 +71,10 @@ static void reset(){
   reg.PC = readMem(0xFFFC) | (readMem(0xFFFD) << 8);
   reg.SP = 0xFF;
   reg.SR |= UNDEFINED;
-  key = 0;
-  keyRdy = 0;
   ope.setAcc = false;
   ope.value = 0;
   ope.address = 0;
+  keyRdy = 0;
 }
 
 
@@ -485,7 +482,7 @@ static void UND(){  // UNDefined (not a valid or supported 6502 opcode)
 }
 
 
-// JUMP TABLES 
+// JUMP TABLES
 
 static void (*instruction[])(void)  = {
  BRK, ORA, UND, UND, UND, ORA, ASL, UND, PHP, ORA, ASL, UND, UND, ORA, ASL, UND,
@@ -529,7 +526,7 @@ static void (*addressing[])(void) = {
 // PROGRAM ENTRY POINT
 
 int main(int argc, char *argv[]) {
-  int i = 0, ch = 0;
+  int i = 0 , ch = 0;
   uint8_t opcode = 0;
 
   // ncurses initialization
@@ -545,25 +542,23 @@ int main(int argc, char *argv[]) {
 
   // main loop
   while(1){
-    for (i=0; i<100; i++){    // executes 100 instructions before a kbd scan
+    for (i=0; i<100; i++){        // executes 100 instructions before a kbd scan
       opcode = readMem(reg.PC++); // FETCH and increment the Program Counter
-      addressing[opcode]();   // DECODE operands against the addressing mode
-      instruction[opcode]();  // EXEC the instruction
+      addressing[opcode]();       // DECODE operands against the addressing mode
+      instruction[opcode]();      // EXEC the instruction
     }
 
     // keyboard controller
-    if (!keyRdy){                        // don't miss a keystroke
-      ch = getch();                      // reads from ncurses
-      if (ch != ERR){
-        key = (uint8_t)ch;               // getch() returns an int
-        if (key == 0x12) reset();        // CTRL-R, reset
-        else if (key == 0x02) BRK();     // CTRL-B, break
-        else {
-          if (key == 0x0A) key = 0x0D;   // LF (\n) to CR (\r)
-          if ((key == 0x7F) || (key == 0x08)) key = 0x5F;  // DEL and BS to _
-          if ((key >= 0x61) && (key <= 0x7A)) key &= 0xDF; // to upper case
-          keyRdy = 0x80;
-        }
+    ch = getch();                     // non blocking keybd read from ncurses
+    if (ch != ERR){
+      key = (uint8_t)ch;              // getch() returns an int
+      if (key == 0x12) reset();       // CTRL-R, reset
+      else if (key == 0x02) BRK();    // CTRL-B, break
+      else if (!keyRdy){              // only if not already a key in wait
+        if (key == 0x0A) key = 0x0D;  // LF (\n) to CR (\r)
+        if ((key == 0x7F) || (key == 0x08)) key = 0x5F;  // DEL and BS to _
+        if ((key >= 0x61) && (key <= 0x7A)) key &= 0xDF; // to upper case
+        keyRdy = 0x80;
       }
     }
   }
