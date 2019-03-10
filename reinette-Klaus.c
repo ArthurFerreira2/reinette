@@ -1,8 +1,6 @@
 // Reinette, emulates the Apple 1 computer
 // Copyright 2018 Arthur Ferreira
-// Last modified 5th of March 2019
-// initially developped on GNU/Linux
-// compiles with gcc 6.3.0-18
+// Last modified 9th of March 2019
 
 #include <ncurses.h>
 #include <unistd.h>      // for usleep()
@@ -79,11 +77,10 @@ static void reset(){
   reg.PC = readMem(0xFFFC) | (readMem(0xFFFD) << 8);
   reg.SP = 0xFF;
   reg.SR |= UNDEFINED;
-  key = 0;
-  keyRdy = 0;
   ope.setAcc = false;
   ope.value = 0;
   ope.address = 0;
+  keyRdy = 0;
 }
 
 
@@ -168,7 +165,7 @@ static void IND(){  // INDirect - JMP ($ABCD) with page-boundary wraparound bug
 
 static void IDX(){  // InDexed indirect X
   uint16_t vector1 = ((readMem(reg.PC++) + reg.X) & 0xFF);
-  ope.address = readMem(vector1&0x00FF) | (readMem((vector1+1) & 0x00FF) << 8);
+  ope.address = readMem(vector1 & 0x00FF)|(readMem((vector1+1) & 0x00FF) << 8);
   ope.value = readMem(ope.address);
 }
 
@@ -228,7 +225,8 @@ static void LDA(){  // LoaD Accumulator
 
 static void LDX(){  // LoaD X
   reg.X = ope.value;
-  setSZ(reg.X);}
+  setSZ(reg.X);
+}
 
 static void LDY(){  // LoaD Y
   reg.Y = ope.value;
@@ -371,20 +369,20 @@ static void RTI(){  // ReTurn from Interrupt
 }
 
 static void CMP(){  // Compare with A
-  setSZ((reg.A - ope.value) & 0xFF);
-  if (reg.A >= (ope.value & 0xFF)) reg.SR |= CARRY;
+  setSZ(reg.A - ope.value);
+  if (reg.A >= ope.value) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
 }
 
 static void CPX(){  // Compare with X
-  setSZ((reg.X - ope.value) & 0xFF);
-  if (reg.X >= (ope.value & 0xFF)) reg.SR |= CARRY;
+  setSZ(reg.X - ope.value);
+  if (reg.X >= ope.value) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
 }
 
 static void CPY(){  // Compare with Y
-  setSZ((reg.Y - ope.value) & 0xFF);
-  if (reg.Y >= (ope.value & 0xFF)) reg.SR |= CARRY;
+  setSZ(reg.Y - ope.value);
+  if (reg.Y >= ope.value) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
 }
 
@@ -404,61 +402,43 @@ static void EOR(){  // Exclusive Or with A
 }
 
 static void BIT(){  // BIT with A - http://www.6502.org/tutorials/vflag.html
-  if (!(reg.A & ope.value)) reg.SR |= ZERO;
-  else reg.SR &= ~ZERO;
+  if (reg.A & ope.value) reg.SR &= ~ZERO;
+  else reg.SR |= ZERO;
   reg.SR = (reg.SR & 0x3F) | (ope.value & 0xC0);  // update SIGN & OVERFLOW
+}
+
+static void makeUpdates(uint8_t val){
+  if (ope.setAcc) reg.A = val;
+  else writeMem(ope.address, val);
+  ope.setAcc = false;
+  setSZ(val);
 }
 
 static void ASL(){  // Arithmetic Shift Left
   uint16_t result = (ope.value << 1);
   if (result & 0xFF00) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
-  result &= 0xFF;
-  if (ope.setAcc){
-    reg.A = result;
-    ope.setAcc = false;
-  }
-  else writeMem(ope.address, result);
-  setSZ(result);
+  makeUpdates((uint8_t)(result & 0xFF));
 }
 
 static void LSR(){  // Logical Shift Right
-  uint8_t result8;
   if (ope.value & 1) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
-  result8 = (ope.value >> 1) & 0xFF;
-  if (ope.setAcc){
-    reg.A = result8;
-    ope.setAcc = false;
-  }
-  else writeMem(ope.address, result8);
-  setSZ(result8);
+  makeUpdates((uint8_t)((ope.value >> 1) & 0xFF));
 }
 
 static void ROL(){  // ROtate Left
   uint16_t result = ((ope.value << 1) | (reg.SR & CARRY));
   if (result & 0x100) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
-  result &= 0xFF;
-  if (ope.setAcc){
-    reg.A = result;
-    ope.setAcc = false;
-  }
-  else writeMem(ope.address, result);
-  setSZ(result);
+  makeUpdates((uint8_t)(result & 0xFF));
 }
 
 static void ROR(){  // ROtate Right
   uint16_t result = (ope.value >> 1) | ((reg.SR & CARRY) << 7);
   if (ope.value & 0x1) reg.SR |= CARRY;
   else reg.SR &= ~CARRY;
-  result &= 0xFF;
-  if (ope.setAcc){
-    reg.A = result;
-    ope.setAcc = false;
-  }
-  else writeMem(ope.address, result);
-  setSZ(result);
+  makeUpdates((uint8_t)(result & 0xFF));
 }
 
 static void ADC(){  // ADd with Carry
@@ -493,7 +473,7 @@ static void UND(){  // UNDefined (not a valid or supported 6502 opcode)
 
 // JUMP TABLES
 
-static void (*instruction[])(void)  = {
+static void (*instruction[])(void) = {
  BRK, ORA, UND, UND, UND, ORA, ASL, UND, PHP, ORA, ASL, UND, UND, ORA, ASL, UND,
  BPL, ORA, UND, UND, UND, ORA, ASL, UND, CLC, ORA, UND, UND, UND, ORA, ASL, UND,
  JSR, AND, UND, UND, BIT, AND, ROL, UND, PLP, AND, ROL, UND, BIT, AND, ROL, UND,
@@ -535,7 +515,7 @@ static void (*addressing[])(void) = {
 // PROGRAM ENTRY POINT
 
 int main(int argc, char *argv[]) {
-  int i = 0, ch = 0;
+  int i = 0;//, ch = 0;
   uint8_t opcode = 0;
 
   // ncurses initialization
@@ -559,12 +539,11 @@ int main(int argc, char *argv[]) {
 
   // main loop
   while(1){
-    for (i=0; i<100; i++){    // executes 100 instructions before a kbd scan
-      opcode = readMem(reg.PC++); // fetch and increment the Program Counter
-      addressing[opcode]();   // decode operands against the addressing mode
-      instruction[opcode]();  // execute the instruction
+    for (i=0; i<100; i++){        // execute 100 instructions before a kbd scan
+      opcode = readMem(reg.PC++); // FETCH and increment the Program Counter
+      addressing[opcode]();       // DECODE operands against the addressing mode
+      instruction[opcode]();      // EXEC the instruction
     }
-
 
 
         // print the Program Counter every 100 instructions to detect faults
@@ -576,19 +555,16 @@ int main(int argc, char *argv[]) {
 
         // Alter a few seconds, PC is stuck at $3469 => all the tests passed
 
-
-
         /*  commented out to run the klaus Test Suite
 
     // keyboard controller
-    if (!keyRdy){                        // don't miss a keystroke
-      ch = getch();                      // reads from ncurses
-      if (ch != ERR){
-        key = (uint8_t)ch;               // getch() returns an int
-        if (key == 0x12) reset();        // CTRL-R, reset
-        else if (key == 0x02) BRK();     // CTRL-B, break
+    if (!keyRdy){                       // only if not already a key in wait
+      if ((ch = getch()) != ERR){       // non blocking keybd read from ncurses
+        key = (uint8_t)ch;              // getch() returns an int
+        if (key == 0x12) reset();       // CTRL-R, reset
+        else if (key == 0x02) BRK();    // CTRL-B, break
         else {
-          if (key == 0x0A) key = 0x0D;   // LF (\n) to CR (\r)
+          if (key == 0x0A) key = 0x0D;  // LF (\n) to CR (\r)
           if ((key == 0x7F) || (key == 0x08)) key = 0x5F;  // DEL and BS to _
           if ((key >= 0x61) && (key <= 0x7A)) key &= 0xDF; // to upper case
           keyRdy = 0x80;
