@@ -1,5 +1,5 @@
 # reinette
-A simple Apple 1 emulator
+The french Apple 1 emulator
 
 Implements a 6502 emulator, basic I/O and runs the Woz monitor.
 
