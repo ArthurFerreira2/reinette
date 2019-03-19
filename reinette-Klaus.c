@@ -1,5 +1,5 @@
 /*
- Reinette, the french Apple 1 computer
+ Reinette, the french Apple 1 emulator
  Last modified 19th of March 2019
 
  Copyright (c) 2018, 2019 Arthur Ferreira
