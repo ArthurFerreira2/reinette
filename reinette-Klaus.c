@@ -487,7 +487,6 @@ static void SBC(){  // SuBtract with Carry
 }
 
 static void UND(){  // UNDefined (not a valid or supported 6502 opcode)
-  printw("\n\n~ Illegal Instruction At Address $%04X ~\n", reg.PC - 1);
   BRK();
 }
 
@@ -535,7 +534,7 @@ static void (*addressing[])(void) = {
 
 // PROGRAM ENTRY POINT
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]){
   int i = 0;//, ch = 0;
   uint8_t opcode = 0;
 
